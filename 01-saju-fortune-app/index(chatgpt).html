@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>사주 운세 분석 (MVP)</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Apple SD Gothic Neo, "Noto Sans KR", sans-serif; }
+    body { margin: 0; background: #0b0c10; color: #e7e7ea; }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 20px; }
+    .card { background: #12141b; border: 1px solid #232635; border-radius: 14px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+    h1 { margin: 6px 0 10px; font-size: 22px; }
+    p.muted { margin: 0; color: #aeb2c2; line-height: 1.5; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 12px; }
+    @media (max-width: 720px) {
+      .grid, .grid3 { grid-template-columns: 1fr; }
+    }
+    label { display: block; font-size: 13px; color: #cfd2df; margin-bottom: 6px; }
+    input, select {
+      width: 100%; box-sizing: border-box;
+      padding: 10px 12px; border-radius: 10px;
+      background: #0e1016; border: 1px solid #2a2f44; color: #e7e7ea;
+      outline: none;
+    }
+    input:focus, select:focus { border-color: #6a7cff; }
+    .row { display:flex; gap:10px; flex-wrap: wrap; margin-top: 10px; }
+    .btn {
+      padding: 10px 14px; border-radius: 12px; border: 1px solid #2a2f44;
+      background: #1a1f2f; color: #fff; cursor: pointer;
+    }
+    .btn.primary { background: #2b3cff; border-color: #2b3cff; }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+    .badge { display:inline-block; font-size: 12px; padding: 4px 8px; border-radius: 999px; border: 1px solid #2a2f44; color:#cfd2df; background:#0e1016; }
+    .sep { height: 1px; background: #232635; margin: 14px 0; }
+    .result { display:none; margin-top: 14px; }
+    .result.show { display:block; }
+    .kv { display:grid; grid-template-columns: 120px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1px dashed #232635; }
+    .kv:last-child { border-bottom: 0; }
+    .k { color:#aeb2c2; font-size: 13px; }
+    .v { font-size: 15px; }
+    .small { font-size: 12px; color:#aeb2c2; }
+    .hist { margin-top: 10px; display:flex; gap:8px; flex-wrap: wrap; }
+    .hist button { font-size: 12px; }
+    .warn { color:#ffcc66; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>사주 운세 분석</h1>
+      <p class="muted">
+        생년월일과 태어난 시간을 입력하면, MVP 기준으로 간단한 사주 정보(간지)와 결과 요약을 보여줍니다.
+        <span class="badge">순수 프론트</span>
+        <span class="badge">로컬 저장</span>
+      </p>
+      <p class="small warn" style="margin-top:8px;">
+        ※ MVP 간지 계산은 “절기/음력 미반영” 간단 버전입니다. (나중에 정확 로직으로 교체 가능)
+      </p>
+
+      <div class="grid">
+        <div>
+          <label for="birthDate">생년월일(양력)</label>
+          <input id="birthDate" type="date" />
+        </div>
+        <div>
+          <label for="birthTime">태어난 시간(12지지)</label>
+          <select id="birthTime">
+            <option value="">선택</option>
+            <option value="자">자(23~01)</option>
+            <option value="축">축(01~03)</option>
+            <option value="인">인(03~05)</option>
+            <option value="묘">묘(05~07)</option>
+            <option value="진">진(07~09)</option>
+            <option value="사">사(09~11)</option>
+            <option value="오">오(11~13)</option>
+            <option value="미">미(13~15)</option>
+            <option value="신">신(15~17)</option>
+            <option value="유">유(17~19)</option>
+            <option value="술">술(19~21)</option>
+            <option value="해">해(21~23)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid3">
+        <div>
+          <label>성별</label>
+          <select id="gender">
+            <option value="">선택</option>
+            <option value="남">남</option>
+            <option value="여">여</option>
+          </select>
+        </div>
+        <div>
+          <label for="nickname">닉네임(선택)</label>
+          <input id="nickname" type="text" placeholder="예: 석희" />
+        </div>
+        <div>
+          <label for="mode">결과 모드</label>
+          <select id="mode">
+            <option value="basic">기본(간단)</option>
+            <option value="fun">재미(짧은 코멘트)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <button id="analyzeBtn" class="btn primary">운세 분석하기</button>
+        <button id="resetBtn" class="btn">초기화</button>
+        <button id="clearHistoryBtn" class="btn">최근검색 삭제</button>
+        <span id="status" class="small" style="align-self:center;"></span>
+      </div>
+
+      <div class="hist" id="history"></div>
+
+      <div class="sep"></div>
+
+      <div id="result" class="result">
+        <div class="kv"><div class="k">입력</div><div class="v" id="vInput"></div></div>
+        <div class="kv"><div class="k">년주(간지)</div><div class="v" id="vYear"></div></div>
+        <div class="kv"><div class="k">월주(간지)</div><div class="v" id="vMonth"></div></div>
+        <div class="kv"><div class="k">시지(지지)</div><div class="v" id="vHour"></div></div>
+        <div class="kv"><div class="k">요약</div><div class="v" id="vSummary"></div></div>
+        <div class="kv"><div class="k">주의</div><div class="v small warn">이 결과는 MVP(간단 계산)입니다. 절기/음력/일주/시주 정밀 계산은 다음 단계에서 교체하세요.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== MVP: "간단 간지" 계산 (절기/음력/일주 정밀 로직은 추후 교체) =====
+    const STEMS = ["갑","을","병","정","무","기","경","신","임","계"];
+    const BRANCHES = ["자","축","인","묘","진","사","오","미","신","유","술","해"];
+
+    function yearGanji(year) {
+      // 1984 = 갑자 기준 (간단)
+      const offset = year - 1984;
+      const stem = STEMS[(0 + (offset % 10 + 10) % 10) % 10];
+      const branch = BRANCHES[(0 + (offset % 12 + 12) % 12) % 12];
+      return { stem, branch, text: stem + branch };
+    }
+
+    function monthGanji(yearStemIndex, month) {
+      // 간단 월주: 양력 월을 지지로 매핑 (Jan=축, Feb=인, ... Dec=자 정도로 단순화)
+      // 월간은 연간에 따른 "인월 시작 월간" 규칙을 적용 (간단)
+      const monthBranchIndex = (month % 12); // 1~12 => 1..0
+      // 인월(지지 index=2) 시작 월간 매핑
+      // 갑/기 -> 병, 을/경 -> 무, 병/신 -> 경, 정/임 -> 임, 무/계 -> 갑
+      const starts = {
+        0: 2, 5: 2, // 갑(0), 기(5) -> 병(2)
+        1: 4, 6: 4, // 을(1), 경(6) -> 무(4)
+        2: 6, 7: 6, // 병(2), 신(7) -> 경(6)
+        3: 8, 8: 8, // 정(3), 임(8) -> 임(8)
+        4: 0, 9: 0  // 무(4), 계(9) -> 갑(0)
+      };
+      const startStemAtIn = starts[yearStemIndex] ?? 0;
+      // 현재 monthBranchIndex 기준으로 인(2)에서 얼마나 떨어졌는지
+      const offsetFromIn = ((monthBranchIndex - 2) % 12 + 12) % 12;
+      const stemIndex = (startStemAtIn + offsetFromIn) % 10;
+      const stem = STEMS[stemIndex];
+      const branch = BRANCHES[monthBranchIndex];
+      return { stem, branch, text: stem + branch };
+    }
+
+    function hourBranchLabel(h) {
+      if (!h) return "";
+      const i = BRANCHES.indexOf(h);
+      return i >= 0 ? `${h} (${["23~01","01~03","03~05","05~07","07~09","09~11","11~13","13~15","15~17","17~19","19~21","21~23"][i]})` : h;
+    }
+
+    function funSummary({y, m, gender, nick}) {
+      const base = [
+        `전체 분위기: ${y.text}년 기운 기반으로 “꾸준함 vs 변주”가 같이 들어옵니다.`,
+        `월 기운: ${m.text} 느낌으로 “속도 조절”이 포인트.`,
+        `성별 입력: ${gender ? gender : "미입력"} (나중에 대운/용신 로직 붙일 때 활용)`,
+      ];
+      const tag = y.branch;
+      const extra = {
+        "자": "관계/정보 흐름이 빨라져요.",
+        "축": "기초 체력/루틴이 성패를 가릅니다.",
+        "인": "확장·도전 욕구가 큽니다.",
+        "묘": "디테일/정리로 승부.",
+        "진": "중간관리·조율 능력이 관건.",
+        "사": "집중력 좋을 때 몰아치기.",
+        "오": "주도권 잡기 쉬운 시기.",
+        "미": "정리/마감/선택과 집중.",
+        "신": "효율·도구화가 핵심.",
+        "유": "평판/퀄리티 관리.",
+        "술": "원칙/규칙으로 안정화.",
+        "해": "탐색/영감/학습이 강합니다."
+      }[tag] ?? "균형감이 중요합니다.";
+      const who = nick ? `${nick}님` : "당신";
+      return `${who}의 간단 요약: ${extra} (MVP 코멘트)`;
+    }
+
+    // ===== UI =====
+    const $ = (id) => document.getElementById(id);
+    const birthDateEl = $("birthDate");
+    const birthTimeEl = $("birthTime");
+    const genderEl = $("gender");
+    const nicknameEl = $("nickname");
+    const modeEl = $("mode");
+    const analyzeBtn = $("analyzeBtn");
+    const resetBtn = $("resetBtn");
+    const clearHistoryBtn = $("clearHistoryBtn");
+    const statusEl = $("status");
+    const historyEl = $("history");
+    const resultEl = $("result");
+
+    const vInput = $("vInput");
+    const vYear = $("vYear");
+    const vMonth = $("vMonth");
+    const vHour = $("vHour");
+    const vSummary = $("vSummary");
+
+    const LS_KEY = "saju_mvp_history_v1";
+
+    function setStatus(msg) { statusEl.textContent = msg || ""; }
+
+    function loadHistory() {
+      try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); }
+      catch { return []; }
+    }
+    function saveHistory(items) {
+      localStorage.setItem(LS_KEY, JSON.stringify(items.slice(0, 8)));
+    }
+    function renderHistory() {
+      const items = loadHistory();
+      historyEl.innerHTML = "";
+      if (!items.length) return;
+      items.forEach((it, idx) => {
+        const b = document.createElement("button");
+        b.className = "btn";
+        b.textContent = `${it.date} / ${it.time || "-"} / ${it.gender || "-"}`;
+        b.title = "클릭하면 값이 채워집니다";
+        b.addEventListener("click", () => {
+          birthDateEl.value = it.date;
+          birthTimeEl.value = it.time || "";
+          genderEl.value = it.gender || "";
+          nicknameEl.value = it.nick || "";
+          modeEl.value = it.mode || "basic";
+          setStatus(`최근검색 ${idx+1} 적용됨`);
+        });
+        historyEl.appendChild(b);
+      });
+    }
+
+    function addToHistory(payload) {
+      const items = loadHistory();
+      const deduped = items.filter(x => !(x.date === payload.date && x.time === payload.time && x.gender === payload.gender));
+      deduped.unshift(payload);
+      saveHistory(deduped);
+      renderHistory();
+    }
+
+    function showResult(data) {
+      vInput.textContent = data.inputText;
+      vYear.textContent = data.yearText;
+      vMonth.textContent = data.monthText;
+      vHour.textContent = data.hourText || "-";
+      vSummary.textContent = data.summaryText;
+      resultEl.classList.add("show");
+      resultEl.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function resetForm() {
+      birthDateEl.value = "";
+      birthTimeEl.value = "";
+      genderEl.value = "";
+      nicknameEl.value = "";
+      modeEl.value = "basic";
+      resultEl.classList.remove("show");
+      setStatus("");
+    }
+
+    analyzeBtn.addEventListener("click", async () => {
+      const birthDate = birthDateEl.value;
+      const birthTime = birthTimeEl.value;
+      const gender = genderEl.value;
+      const nick = nicknameEl.value.trim();
+      const mode = modeEl.value;
+
+      if (!birthDate) {
+        setStatus("생년월일을 입력하세요.");
+        birthDateEl.focus();
+        return;
+      }
+
+      analyzeBtn.disabled = true;
+      setStatus("사주를 분석하고 있습니다...");
+
+      // 로딩 연출 (MVP)
+      await new Promise(r => setTimeout(r, 900));
+
+      const d = new Date(birthDate + "T00:00:00");
+      const year = d.getFullYear();
+      const month = d.getMonth() + 1;
+
+      const y = yearGanji(year);
+      const yStemIndex = STEMS.indexOf(y.stem);
+      const m = monthGanji(yStemIndex, month);
+
+      const inputText = `${birthDate}${birthTime ? " / " + birthTime + "시지" : ""}${gender ? " / " + gender : ""}${nick ? " / " + nick : ""}`;
+      const summaryText = (mode === "fun")
+        ? funSummary({ y, m, gender, nick })
+        : `간단 결과: ${y.text}년, ${m.text}월 기준으로 “루틴+확장”을 균형있게 가져가면 좋습니다.`;
+
+      showResult({
+        inputText,
+        yearText: `${y.text} (간단 계산)`,
+        monthText: `${m.text} (간단 계산)`,
+        hourText: birthTime ? hourBranchLabel(birthTime) : "",
+        summaryText
+      });
+
+      addToHistory({ date: birthDate, time: birthTime, gender, nick, mode });
+
+      setStatus("완료!");
+      analyzeBtn.disabled = false;
+    });
+
+    resetBtn.addEventListener("click", resetForm);
+    clearHistoryBtn.addEventListener("click", () => {
+      localStorage.removeItem(LS_KEY);
+      renderHistory();
+      setStatus("최근검색 삭제됨");
+    });
+
+    // 최초 렌더
+    renderHistory();
+  </script>
+</body>
+</html>
