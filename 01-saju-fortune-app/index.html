@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사주 운세 분석</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+        
+        .input-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .time-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .result-section {
+            display: none;
+        }
+        
+        .result-section.show {
+            display: block;
+        }
+        
+        .saju-display {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .saju-display h2 {
+            color: #d35400;
+            margin-bottom: 15px;
+        }
+        
+        .pillars {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .pillar {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .pillar-title {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .pillar-content {
+            font-size: 24px;
+            font-weight: 700;
+            color: #d35400;
+        }
+        
+        .fortune-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .fortune-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        .fortune-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .fortune-content {
+            color: #555;
+            line-height: 1.8;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔮 사주 운세 분석</h1>
+        
+        <div class="input-section">
+            <div class="form-group">
+                <label>생년월일</label>
+                <input type="date" id="birthDate" max="2025-01-09">
+            </div>
+            
+            <div class="form-group">
+                <label>태어난 시간</label>
+                <div class="time-inputs">
+                    <select id="birthHour">
+                        <option value="">시 선택</option>
+                        <option value="23">자시 (23:00-01:00)</option>
+                        <option value="1">축시 (01:00-03:00)</option>
+                        <option value="3">인시 (03:00-05:00)</option>
+                        <option value="5">묘시 (05:00-07:00)</option>
+                        <option value="7">진시 (07:00-09:00)</option>
+                        <option value="9">사시 (09:00-11:00)</option>
+                        <option value="11">오시 (11:00-13:00)</option>
+                        <option value="13">미시 (13:00-15:00)</option>
+                        <option value="15">신시 (15:00-17:00)</option>
+                        <option value="17">유시 (17:00-19:00)</option>
+                        <option value="19">술시 (19:00-21:00)</option>
+                        <option value="21">해시 (21:00-23:00)</option>
+                    </select>
+                    <select id="gender">
+                        <option value="">성별 선택</option>
+                        <option value="male">남성</option>
+                        <option value="female">여성</option>
+                    </select>
+                </div>
+            </div>
+            
+            <button onclick="analyzeSaju()">운세 분석하기</button>
+        </div>
+        
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>사주를 분석하고 있습니다...</p>
+        </div>
+        
+        <div id="result" class="result-section">
+            <div class="saju-display">
+                <h2>당신의 사주팔자</h2>
+                <div class="pillars">
+                    <div class="pillar">
+                        <div class="pillar-title">년주 (年柱)</div>
+                        <div class="pillar-content" id="yearPillar"></div>
+                    </div>
+                    <div class="pillar">
+                        <div class="pillar-title">월주 (月柱)</div>
+                        <div class="pillar-content" id="monthPillar"></div>
+                    </div>
+                    <div class="pillar">
+                        <div class="pillar-title">일주 (日柱)</div>
+                        <div class="pillar-content" id="dayPillar"></div>
+                    </div>
+                    <div class="pillar">
+                        <div class="pillar-title">시주 (時柱)</div>
+                        <div class="pillar-content" id="hourPillar"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="fortune-card">
+                <div class="fortune-title">💑 결혼운</div>
+                <div class="fortune-content" id="marriageFortune"></div>
+            </div>
+            
+            <div class="fortune-card">
+                <div class="fortune-title">💕 연애운</div>
+                <div class="fortune-content" id="loveFortune"></div>
+            </div>
+            
+            <div class="fortune-card">
+                <div class="fortune-title">💼 직장운</div>
+                <div class="fortune-content" id="careerFortune"></div>
+            </div>
+            
+            <div class="fortune-card">
+                <div class="fortune-title">💰 사업운</div>
+                <div class="fortune-content" id="businessFortune"></div>
+            </div>
+            
+            <div class="fortune-card">
+                <div class="fortune-title">✨ 2026년 운세</div>
+                <div class="fortune-content" id="yearFortune"></div>
+            </div>
+            
+            <div class="fortune-card">
+                <div class="fortune-title">🧠 사주로 보는 MBTI 성향</div>
+                <div class="fortune-content" id="mbtiFortune"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Korean Lunar Calendar 라이브러리 -->
+    <script src="https://cdn.jsdelivr.net/npm/korean-lunar-calendar/dist/korean-lunar-calendar.min.js"></script>
+    
+    <script>
+        // 시주 계산을 위한 천간 배열
+        const heavenlyStems = ['갑', '을', '병', '정', '무', '기', '경', '신', '임', '계'];
+        const earthlyBranches = ['자', '축', '인', '묘', '진', '사', '오', '미', '신', '유', '술', '해'];
+        
+        // 한자를 한글로 변환
+        function chineseToKorean(chinese) {
+            const mapping = {
+                '甲': '갑', '乙': '을', '丙': '병', '丁': '정', '戊': '무', 
+                '己': '기', '庚': '경', '辛': '신', '壬': '임', '癸': '계',
+                '子': '자', '丑': '축', '寅': '인', '卯': '묘', '辰': '진', '巳': '사',
+                '午': '오', '未': '미', '申': '신', '酉': '유', '戌': '술', '亥': '해'
+            };
+            return chinese.split('').map(c => mapping[c] || c).join('');
+        }
+        
+        // 일간에 따른 시주 천간 계산
+        function getHourStem(dayStem, hourBranch) {
+            const dayStemIndex = heavenlyStems.indexOf(dayStem);
+            const hourBranchIndex = earthlyBranches.indexOf(hourBranch);
+            
+            // 일간에 따른 시간 천간 계산 공식
+            const hourStemIndex = (dayStemIndex * 2 + hourBranchIndex) % 10;
+            return heavenlyStems[hourStemIndex];
+        }
+        
+        // 정확한 사주 계산 (한국천문연구원 기준)
+        function calculateSaju(year, month, day, hour) {
+            try {
+                const calendar = new KoreanLunarCalendar();
+                calendar.setSolarDate(year, month, day);
+                
+                // 간지 정보 가져오기 (한자)
+                const gapja = calendar.getChineseGapja();
+                
+                // 한자를 한글로 변환
+                const yearPillar = chineseToKorean(gapja.year.replace('年', ''));
+                const monthPillar = chineseToKorean(gapja.month.replace('月', ''));
+                const dayPillar = chineseToKorean(gapja.day.replace('日', ''));
+                
+                // 시주 계산
+                const hourBranchIndex = Math.floor((hour + 1) / 2) % 12;
+                const hourBranch = earthlyBranches[hourBranchIndex];
+                const dayStem = dayPillar[0]; // 일간
+                const hourStem = getHourStem(dayStem, hourBranch);
+                const hourPillar = hourStem + hourBranch;
+                
+                return {
+                    year: yearPillar,
+                    month: monthPillar,
+                    day: dayPillar,
+                    hour: hourPillar
+                };
+            } catch (error) {
+                console.error('사주 계산 오류:', error);
+                return null;
+            }
+        }
+        
+        async function analyzeSaju() {
+            const birthDate = document.getElementById('birthDate').value;
+            const birthHour = document.getElementById('birthHour').value;
+            const gender = document.getElementById('gender').value;
+            
+            if (!birthDate || !birthHour || !gender) {
+                alert('모든 정보를 입력해주세요.');
+                return;
+            }
+            
+            const date = new Date(birthDate);
+            const year = date.getFullYear();
+            const month = date.getMonth() + 1;
+            const day = date.getDate();
+            const hour = parseInt(birthHour);
+            
+            // 사주 계산 (한국천문연구원 기준)
+            const saju = calculateSaju(year, month, day, hour);
+            
+            if (!saju) {
+                alert('사주 계산에 실패했습니다. 날짜를 확인해주세요.');
+                document.getElementById('loading').style.display = 'none';
+                return;
+            }
+            
+            // 사주 표시
+            document.getElementById('yearPillar').textContent = saju.year;
+            document.getElementById('monthPillar').textContent = saju.month;
+            document.getElementById('dayPillar').textContent = saju.day;
+            document.getElementById('hourPillar').textContent = saju.hour;
+            
+            // 로딩 표시
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result').classList.remove('show');
+            
+            try {
+                // Claude API 호출
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-sonnet-4-20250514',
+                        max_tokens: 2000,
+                        messages: [{
+                            role: 'user',
+                            content: `당신은 전문 사주 상담가입니다. 다음 사주를 분석해주세요:
+
+생년월일: ${year}년 ${month}월 ${day}일
+태어난 시간: ${hour}시
+성별: ${gender === 'male' ? '남성' : '여성'}
+
+사주팔자:
+- 년주: ${saju.year}
+- 월주: ${saju.month}
+- 일주: ${saju.day}
+- 시주: ${saju.hour}
+
+다음 항목들을 각각 2-3문장으로 구체적이고 긍정적으로 분석해주세요:
+1. 결혼운
+2. 연애운
+3. 직장운
+4. 사업운
+5. 2026년 운세
+6. MBTI 성향 (이 사주를 가진 사람과 가장 유사한 MBTI 유형 1-2개를 추천하고, 그 이유를 설명해주세요)
+
+각 항목을 명확히 구분하여 작성해주세요.`
+                        }]
+                    })
+                });
+                
+                const data = await response.json();
+                const analysis = data.content[0].text;
+                
+                // 응답 파싱 및 표시
+                parseAndDisplayFortune(analysis);
+                
+                // 결과 표시
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('result').classList.add('show');
+                document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
+                
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                alert('운세 분석 중 오류가 발생했습니다. Claude API 연동이 필요합니다.');
+                console.error(error);
+                
+                // 데모용 기본 텍스트
+                displayDemoFortune(saju);
+                document.getElementById('result').classList.add('show');
+            }
+        }
+        
+        function parseAndDisplayFortune(analysis) {
+            // 간단한 파싱 (실제로는 더 정교한 파싱 필요)
+            const sections = analysis.split(/\d\.\s+/);
+            
+            if (sections.length >= 7) {
+                document.getElementById('marriageFortune').textContent = sections[1].trim();
+                document.getElementById('loveFortune').textContent = sections[2].trim();
+                document.getElementById('careerFortune').textContent = sections[3].trim();
+                document.getElementById('businessFortune').textContent = sections[4].trim();
+                document.getElementById('yearFortune').textContent = sections[5].trim();
+                document.getElementById('mbtiFortune').textContent = sections[6].trim();
+            } else {
+                displayDemoFortune();
+            }
+        }
+        
+        function displayDemoFortune(saju) {
+            document.getElementById('marriageFortune').textContent = 
+                '당신의 사주는 배우자와의 인연이 깊은 편입니다. 서로를 존중하고 이해하는 관계를 형성할 수 있으며, 중년 이후 더욱 안정적인 결혼 생활을 영위할 수 있습니다.';
+            
+            document.getElementById('loveFortune').textContent = 
+                '연애에 있어서 진지하고 책임감 있는 태도를 보입니다. 감정 표현에 다소 서툴 수 있으나, 진심을 담아 상대방을 대하는 모습이 매력적입니다. 올해는 새로운 인연을 만날 가능성이 높습니다.';
+            
+            document.getElementById('careerFortune').textContent = 
+                '직장에서의 성실함과 책임감이 인정받아 승진이나 중요한 프로젝트를 맡게 될 수 있습니다. 상사와의 관계도 원만하며, 동료들과의 협력을 통해 좋은 성과를 거둘 수 있습니다.';
+            
+            document.getElementById('businessFortune').textContent = 
+                '사업을 시작하거나 확장하기에 좋은 시기입니다. 특히 신중한 판단과 계획적인 투자가 성공을 가져올 것입니다. 파트너십을 통한 사업이 유리할 수 있습니다.';
+            
+            document.getElementById('yearFortune').textContent = 
+                '2026년은 전반적으로 안정적이고 발전적인 한 해가 될 것입니다. 상반기에는 계획을 세우고 준비하는 시기이며, 하반기에는 그 결실을 맺을 수 있습니다. 건강 관리에 신경 쓰면서 꾸준히 노력하세요.';
+            
+            document.getElementById('mbtiFortune').textContent = 
+                '당신의 사주는 INFJ 또는 INTJ 성향과 유사합니다. 깊이 있는 사고와 통찰력을 지니고 있으며, 계획적이고 목표 지향적인 성격을 가지고 있습니다. 내면의 세계가 풍부하며, 신중하게 결정을 내리는 편입니다.';
+        }
+    </script>
+</body>
+</html>
