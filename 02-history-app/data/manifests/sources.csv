@@ -1,0 +1,9 @@
+source_id,title,org,author,year,url,file_path,license,tags,source_type,genre,reliability_tier,stance_label,anchor_weight,use_as_anchor,notes
+TSK-2023-001,대한민국 사회교과서 (현대사 편),대한민국 사회교과서 편찬위원회,박석희 외,2024,,data/raw/TSK-2023-001.pdf,copyright,현대사;이승만;박정희;해방정국,reference,curriculum_book,A,mixed,1.25,yes,본 앱의 기준 서술(anchor source)로 사용. 제작자(필진) 참여 출판물.
+MJ-2014-001,이승만 건국사 ,뉴데일리,,2014,https://www.newdaily.co.kr/news/review_list_all.html?rvw_no=1725,data/raw/MJ-2014-001.html,unknown,이승만;건국;해방정국,media,magazine_series,B,conservative,1,no,연재/해설 성격. 사료·학술(A)과 병렬 제시 권장.
+ND-2015-010,이승만과 김구 ,월간조선,,2015,https://monthly.chosun.com/client/sch/search.asp?keyword=%E1%DD%E1%A6%EC%E9%C0%C7%20%BA%F1%B1%B3%20%F8%C4%EE%EE,data/raw/ND-2015-010.html,unknown,이승만;김구;해방정국,media,newspaper_series,B,conservative,1,no,연재/해설 성격. 반대 관점/학술 자료와 함께 검색되도록 설정 권장.
+KHC-0000-EX1,(예시) 한국사데이터베이스 - 대한민국임시정부 관련 사료,국사편찬위원회,국사편찬위원회,,https://db.history.go.kr,data/raw/KHC-0000-EX1.txt,public,임시정부;독립운동;사료,primary,archive_db,A,mixed,1.15,no,공공기관/사료 DB 예시. 실제 사용 시 문서/항목 단위로 분할 등록 권장.
+NAK-0000-EX2,(예시) 국가기록원 - 법령/공문서(해방정국),국가기록원,대한민국 정부,,https://www.archives.go.kr,data/raw/NAK-0000-EX2.pdf,public,해방정국;법령;공문서,primary,government_record,A,mixed,1.15,no,1차 사료 예시. 페이지 단위 인용이 가능하도록 PDF 원본 유지 권장.
+ACAD-0000-EX3,(예시) 학술논문/전문서적 - 이승만/해방정국 연구,학술지/출판사,(저자명),,,data/raw/ACAD-0000-EX3.pdf,copyright,이승만;해방정국;학술,secondary,academic_paper,A,mixed,1.15,no,학술 A티어 예시. DOI/서지정보를 notes에 추가하면 추적이 쉬움.
+REF-0000-EX4,(예시) 참고서/백과/교과서(검정/공인),출판사/기관,(편찬),,,data/raw/REF-0000-EX4.pdf,copyright,참고서;백과;교과,reference,reference_book,A,mixed,1.1,no,참고서 A티어 예시. 앱에서 '사실 요약' 섹션에 주로 반영.
+MEDIA-0000-EX5,(예시) 주요 언론 심층기획/인터뷰,언론사,(기자명),,,data/raw/MEDIA-0000-EX5.html,unknown,언론;기획;인터뷰,media,feature_series,B,unknown,1,no,B티어 예시. '관점/해설' 섹션에 병렬 제시 권장.
