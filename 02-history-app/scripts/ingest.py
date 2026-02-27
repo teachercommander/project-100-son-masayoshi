@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 # coding: utf-8
 """
 ingest.py
@@ -7,6 +7,7 @@ ingest.py
   * local PDF (page-based)
   * local HTML (section-based)
   * local TXT/MD
+  * local JSON/JSONL (record-based)
   * optionally fetches URL HTML (--fetch-web)
 - Writes JSONL to data/processed/{source_id}.jsonl
 Each JSONL line is a block with location metadata for citations.
@@ -15,15 +16,24 @@ Each JSONL line is a block with location metadata for citations.
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
 import re
 import time
 from dataclasses import asdict, dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-import pandas as pd
-from tqdm import tqdm
+try:
+    from tqdm import tqdm
+except Exception:
+    def tqdm(iterable, **kwargs):
+        return iterable
+
+try:
+    import pandas as pd  # type: ignore
+except Exception:
+    pd = None
 
 try:
     import pdfplumber  # type: ignore
@@ -43,7 +53,7 @@ except Exception:
 
 @dataclass
 class ProcessedBlock:
-    chunk_source: str  # "page" | "web_section" | "text"
+    chunk_source: str  # "page" | "web_section" | "text" | "json_record"
     source_id: str
     loc: Dict
     text: str
@@ -70,16 +80,20 @@ def norm_space(s: str) -> str:
     return s.strip()
 
 
+def is_na_like(v: Any) -> bool:
+    if v is None:
+        return True
+    s = str(v).strip()
+    return s == "" or s.lower() in {"nan", "none", "null"}
 
 
-def safe_int(v) -> Optional[int]:
+def safe_int(v: Any) -> Optional[int]:
     try:
-        if pd.isna(v):
+        if pd is not None and pd.isna(v):
             return None
-        t = str(v).strip()
-        if not t:
+        if is_na_like(v):
             return None
-        return int(float(t))
+        return int(float(str(v).strip()))
     except Exception:
         return None
 
@@ -114,31 +128,122 @@ def split_long_text(text: str, max_chars: int = 8000) -> List[str]:
     return [x for x in final if x]
 
 
-def load_sources_table(path: str) -> pd.DataFrame:
+def iter_json_records(path: str) -> Iterable[Dict[str, Any]]:
+    if path.lower().endswith(".jsonl"):
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                except Exception:
+                    continue
+                if isinstance(obj, dict):
+                    yield obj
+    else:
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            obj = json.load(f)
+        if isinstance(obj, list):
+            for item in obj:
+                if isinstance(item, dict):
+                    yield item
+        elif isinstance(obj, dict):
+            # Try common list containers first.
+            for k in ["results", "items", "documents", "data", "rows"]:
+                v = obj.get(k)
+                if isinstance(v, list):
+                    for item in v:
+                        if isinstance(item, dict):
+                            yield item
+                    return
+            yield obj
+
+
+def pick_json_text(record: Dict[str, Any], text_fields: List[str]) -> str:
+    if not text_fields:
+        text_fields = [
+            "title",
+            "subtitle",
+            "summary",
+            "abstract",
+            "description",
+            "content",
+            "body",
+            "text",
+        ]
+
+    pieces: List[str] = []
+    for field in text_fields:
+        value = record.get(field)
+        if isinstance(value, str) and value.strip():
+            pieces.append(value.strip())
+        elif isinstance(value, list):
+            joined = "\n".join(str(x).strip() for x in value if str(x).strip())
+            if joined:
+                pieces.append(joined)
+
+    if not pieces:
+        # fallback: stringify short scalar fields
+        for k, v in record.items():
+            if isinstance(v, (str, int, float)):
+                s = str(v).strip()
+                if s and len(s) <= 1200:
+                    pieces.append(f"{k}: {s}")
+
+    return norm_space("\n\n".join(pieces))
+
+
+def normalize_row(row: Dict[str, Any], required: List[str], optional: List[str]) -> Dict[str, Any]:
+    out: Dict[str, Any] = {}
+    for col in required + optional:
+        out[col] = row.get(col, "")
+    return out
+
+
+def load_sources_table(path: str) -> List[Dict[str, Any]]:
+    required = ["source_id", "title", "org", "author", "year", "url", "file_path", "license", "tags"]
+    optional = [
+        "source_type",
+        "genre",
+        "reliability_tier",
+        "stance_label",
+        "anchor_weight",
+        "use_as_anchor",
+        "content_fields",
+        "notes",
+    ]
+
+    rows: List[Dict[str, Any]] = []
     if path.lower().endswith(".csv"):
-        df = pd.read_csv(path, encoding="utf-8-sig")
+        with open(path, "r", encoding="utf-8-sig", errors="ignore", newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                nr = normalize_row(row, required, optional)
+                sid = str(nr.get("source_id", "")).strip()
+                if sid:
+                    nr["source_id"] = sid
+                    rows.append(nr)
     elif path.lower().endswith((".xlsx", ".xlsm", ".xls")):
+        if pd is None:
+            raise RuntimeError("pandas is required to read Excel sources. Install: python -m pip install pandas")
         df = pd.read_excel(path, sheet_name="sources")
+        for col in required + optional:
+            if col not in df.columns:
+                df[col] = ""
+        for _, row in df.iterrows():
+            nr = normalize_row(row.to_dict(), required, optional)
+            sid = str(nr.get("source_id", "")).strip()
+            if sid and sid.lower() != "nan":
+                nr["source_id"] = sid
+                rows.append(nr)
     else:
         raise ValueError("sources must be .csv or .xlsx")
 
-    required = ["source_id", "title", "org", "author", "year", "url", "file_path", "license", "tags"]
-    for col in required:
-        if col not in df.columns:
-            df[col] = ""
-
-    optional = ["source_type", "genre", "reliability_tier", "stance_label", "anchor_weight", "use_as_anchor", "notes"]
-    for col in optional:
-        if col not in df.columns:
-            df[col] = ""
-
-    df = df.dropna(subset=["source_id"])
-    df["source_id"] = df["source_id"].astype(str).str.strip()
-    df = df[df["source_id"] != ""]
-    return df
+    return rows
 
 
-def meta_from_row(row: pd.Series) -> Dict:
+def meta_from_row(row: Dict[str, Any]) -> Dict[str, Any]:
     tags = [t.strip() for t in str(row.get("tags", "")).split(";") if t.strip()]
     return {
         "title": str(row.get("title", "")).strip(),
@@ -154,6 +259,7 @@ def meta_from_row(row: pd.Series) -> Dict:
         "stance_label": str(row.get("stance_label", "")).strip(),
         "anchor_weight": row.get("anchor_weight", ""),
         "use_as_anchor": str(row.get("use_as_anchor", "")).strip(),
+        "content_fields": str(row.get("content_fields", "")).strip(),
         "notes": str(row.get("notes", "")).strip(),
     }
 
@@ -230,7 +336,7 @@ def read_local_html(path: str) -> str:
         return f.read()
 
 
-def ingest_one(row: pd.Series, outdir: str, fetch_web: bool, sleep_sec: float) -> int:
+def ingest_one(row: Dict[str, Any], outdir: str, fetch_web: bool, sleep_sec: float) -> int:
     source_id = str(row["source_id"]).strip()
     meta = meta_from_row(row)
 
@@ -243,6 +349,7 @@ def ingest_one(row: pd.Series, outdir: str, fetch_web: bool, sleep_sec: float) -
     is_pdf = file_path.lower().endswith(".pdf") if file_path else False
     is_html = file_path.lower().endswith((".html", ".htm")) if file_path else False
     is_text = file_path.lower().endswith((".txt", ".md")) if file_path else False
+    is_json = file_path.lower().endswith((".json", ".jsonl")) if file_path else False
 
     if file_path and is_pdf:
         if not os.path.exists(file_path):
@@ -270,6 +377,21 @@ def ingest_one(row: pd.Series, outdir: str, fetch_web: bool, sleep_sec: float) -
         for part_idx, part in enumerate(split_long_text(text), start=1):
             loc = {"part": part_idx}
             blocks.append(ProcessedBlock("text", source_id, loc, part, meta))
+
+    elif file_path and is_json:
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"[{source_id}] JSON not found: {file_path}")
+
+        content_fields = [x.strip() for x in str(row.get("content_fields", "")).split(";") if x.strip()]
+
+        for rec_idx, rec in enumerate(iter_json_records(file_path), start=1):
+            text = pick_json_text(rec, content_fields)
+            if not text:
+                continue
+
+            for part_idx, part in enumerate(split_long_text(text), start=1):
+                loc = {"record": rec_idx, "part": part_idx}
+                blocks.append(ProcessedBlock("json_record", source_id, loc, part, meta))
 
     elif url and fetch_web:
         html = fetch_url(url)
@@ -304,14 +426,14 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=0, help="process only first N rows (0=all)")
     args = parser.parse_args()
 
-    df = load_sources_table(args.sources)
+    rows = load_sources_table(args.sources)
     if args.limit and args.limit > 0:
-        df = df.head(args.limit)
+        rows = rows[: args.limit]
 
     ensure_dir(args.outdir)
 
     processed, skipped, failed = 0, 0, 0
-    for _, row in tqdm(df.iterrows(), total=len(df), desc="Ingesting"):
+    for row in tqdm(rows, total=len(rows), desc="Ingesting"):
         sid = str(row["source_id"]).strip()
         try:
             n = ingest_one(row, args.outdir, args.fetch_web, args.sleep)
